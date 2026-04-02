@@ -1,6 +1,6 @@
 from os import devnull
 from pathlib import Path
-from typing import Any, Iterable, Generator
+from typing import Any, Callable, Iterable, Generator
 
 from rich.console import Console
 from rich.tree import Tree
@@ -34,13 +34,7 @@ class FileTree(Tree):
             exclude=excluded_files + excluded_dirs,
         )
         for file in files:
-            node = self
-            for part in file.parts:
-                child: Tree
-                children = {child.label: child for child in node.children}
-                if part not in children:
-                    children[part] = node.add(part)
-                node = children[part]
+            assert self._add_to_tree(self, file) is not None
 
     def __iter__(self) -> Generator[Path, None, None]:
         yield from self._iter_tree(self, self.base_directory)
@@ -53,6 +47,28 @@ class FileTree(Tree):
 
     def __repr__(self) -> str:
         return super().__repr__()
+
+    @staticmethod
+    def _add_to_tree(tree: Tree,
+                     path: Path,
+                     node_predicate: Callable[[Tree], bool] = lambda _: True) -> Tree | None:
+        node = tree
+        first_added: tuple[Tree, Tree] | None = None
+        for part in path.parts:
+            if not node_predicate(node):
+                if first_added is not None:
+                    node, added = first_added
+                    node.children.remove(added)
+                return None
+            child: Tree
+            children = {child.label: child for child in node.children}
+            if part not in children:
+                added = node.add(part)
+                if first_added is None:
+                    first_added = node, added
+                children[part] = added
+            node = children[part]
+        return node
 
     @staticmethod
     def _validate_files(files: Iterable[Path], base_directory: Path) -> None:

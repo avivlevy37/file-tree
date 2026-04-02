@@ -97,7 +97,7 @@ class FileTree(Tree):
     def _iter_files(cls,
                     node: Tree,
                     base_path: Path) -> Generator[Path, None, None]:
-        node_path = base_path / node.label
+        node_path = base_path / str(node.label)
         if node_path.is_file():
             yield node_path
             return

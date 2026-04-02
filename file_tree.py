@@ -99,10 +99,7 @@ class FileTree(Tree):
                     base_path: Path) -> Generator[Path, None, None]:
         node_path = base_path / node.label
         if node_path.is_file():
-            assert not node.children
             yield node_path
             return
-        assert node_path.is_dir()
-        assert node.children, f"{node_path} cannot be empty!"
         for child in node.children:
             yield from cls._iter_files(child, node_path)

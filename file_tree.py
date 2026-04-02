@@ -22,17 +22,13 @@ class FileTree(Tree):
         if include is not None:
             self._validate_files(include, directory)
 
-        if exclude is None:
+        if exclude is not None:
+            exclude = self._validate_excludes(directory, exclude)
+        else:
             exclude = []
         exclude: Iterable[Path]
 
-        excluded_files, excluded_dirs = self._validate_excludes(exclude)
-
-        files = self._iter_relative(
-            directory=self.base_directory,
-            include=include,
-            exclude=excluded_files + excluded_dirs,
-        )
+        files = self._iter_relative(self.base_directory, include, exclude)
         for file in files:
             assert self._add_to_tree(self, file) is not None
 
@@ -86,22 +82,46 @@ class FileTree(Tree):
             )
 
     @staticmethod
-    def _validate_excludes(exclude: Iterable[Path]) -> tuple[list[Path], list[Path]]:
+    def _get_all_parents(path: Path) -> set[Path]:
+        parents: set[Path] = set()
+        current = path
+        while True:
+            parent = current.parent
+            if parent == current:  # Reached root
+                return parents
+            parents.add(parent)
+            current = parent
+
+    @classmethod
+    def _validate_excludes(cls,
+                           base: Path,
+                           exclude: Iterable[Path]) -> set[Path]:
         """
         :raises FileNotFoundError: If one of the excluded files
                                    does not exist.
         :return: (excluded_files, excluded_dirs)
         """
-        excluded_files = []
-        excluded_dirs = []
+        excluded_files: set[Path] = set()
+        excluded_dirs: set[Path] = set()
         for excluded in exclude:
             if excluded.is_file():
-                excluded_files.append(excluded)
+                excluded_files.add(excluded)
             elif excluded.is_dir():
-                excluded_dirs.append(excluded)
+                excluded_dirs.add(excluded)
             else:
                 raise FileNotFoundError(f"{excluded} does not exist!")
-        return excluded_files, excluded_dirs
+            assert excluded.is_relative_to(base)
+
+        # Refine unnecessary dupes
+        excluded_dirs = {
+            _dir for _dir in excluded_dirs
+            if not cls._get_all_parents(_dir) & excluded_dirs
+        }
+        excluded_files = {
+            file for file in excluded_files
+            if not cls._get_all_parents(file) & excluded_dirs
+        }
+        return excluded_files | excluded_dirs
 
     @staticmethod
     def _iter_relative(directory: Path,

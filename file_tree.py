@@ -10,13 +10,15 @@ class FileTree(Tree):
     def __init__(self,
                  directory: Path,
                  *,
-                 name: str = ".",
+                 name: str | None = None,
                  include: Iterable[Path] | None = None,
                  exclude: Iterable[Path] | None = None,
                  **kwargs: dict[str, Any]) -> None:
-        super().__init__(name, **kwargs)
-
         assert directory.is_dir(), directory
+        if name is None:
+            name = directory.name
+        name: str
+        super().__init__(name, **kwargs)
         self.base_directory = directory
 
         if include is not None:

@@ -13,10 +13,11 @@ class FileTree(Tree):
                  name: str | None = None,
                  include: Iterable[Path] | None = None,
                  exclude: Iterable[Path] | None = None,
+                 ignore_dot_prefix: bool = True,
                  **kwargs: dict[str, Any]) -> None:
         assert directory.is_dir(), directory
         if name is None:
-            name = directory.name or '.'
+            name = directory.name or "."
         name: str
         super().__init__(name, **kwargs)
         self.base_directory = directory
@@ -30,9 +31,15 @@ class FileTree(Tree):
             exclude = []
         exclude: Iterable[Path]
 
-        files = self._iter_relative(self.base_directory, include, exclude)
+        files = self._iter_relative(
+            directory=self.base_directory,
+            include=include,
+            exclude=exclude,
+            ignore_dot_prefix=ignore_dot_prefix,
+        )
         for file in files:
-            assert self._add_to_tree(self, file) is not None
+            added = self._add_to_tree(self, file)
+            assert added is not None
 
     def __iter__(self) -> Generator[Path, None, None]:
         yield from self._iter_tree(self, self.base_directory)
@@ -128,32 +135,27 @@ class FileTree(Tree):
     @staticmethod
     def _iter_relative(directory: Path,
                        include: Iterable[Path] | None,
-                       exclude: Iterable[Path]) -> Generator[Path, None, None]:
-        def __iter_relative(
-                _base: Path,
-                _directory: Path,
-                _include: Iterable[Path] | None,
-                _exclude: Iterable[Path],
-        ) -> Generator[Path, None, None]:
-            if _directory in _exclude:
+                       exclude: Iterable[Path],
+                       ignore_dot_prefix: bool) -> Generator[Path, None, None]:
+        base = directory
+
+        def __iter_relative(_directory: Path) -> Generator[Path, None, None]:
+            if _directory in exclude:
                 return
             for _child in _directory.iterdir():
-                if _child in _exclude:
+                if ignore_dot_prefix and _child.name.startswith("."):
+                    continue
+                if _child in exclude:
                     continue
                 if _child.is_dir():
-                    yield from __iter_relative(
-                        _base,
-                        _child,
-                        _include,
-                        _exclude,
-                    )
+                    yield from __iter_relative(_child)
                     continue
                 # child is a file
-                if _include is not None and _child not in _include:
+                if include is not None and _child not in include:
                     continue
-                yield _child.relative_to(_base)
+                yield _child.relative_to(base)
 
-        yield from __iter_relative(directory, directory, include, exclude)
+        yield from __iter_relative(directory)
 
     @classmethod
     def _iter_tree(cls,

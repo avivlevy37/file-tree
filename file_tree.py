@@ -49,10 +49,8 @@ class FileTree(Tree):
                                 not under `base_directory`.
         """
         for file in files:
-            if not file.exists():
-                raise FileNotFoundError(f"{file} does not exist!")
             if not file.is_file():
-                raise FileNotFoundError(f"{file} exists but is not a file!")
+                raise FileNotFoundError(f"{file} is not a file!")
             assert file.is_relative_to(base_directory), (
                 f"{file} is not under base directory: {base_directory}"
             )

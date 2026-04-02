@@ -29,7 +29,7 @@ class FileTree(Tree):
                 node = children[part]
 
     def __iter__(self) -> Generator[Path, None, None]:
-        yield from self._iter_files(self, self.base_directory)
+        yield from self._iter_tree(self, self.base_directory)
 
     def __str__(self) -> str:
         with open(devnull, "w", encoding="utf-8") as out:
@@ -94,12 +94,12 @@ class FileTree(Tree):
             yield file.relative_to(directory)
 
     @classmethod
-    def _iter_files(cls,
-                    node: Tree,
-                    base_path: Path) -> Generator[Path, None, None]:
+    def _iter_tree(cls,
+                   node: Tree,
+                   base_path: Path) -> Generator[Path, None, None]:
         node_path = base_path / str(node.label)
         if node_path.is_file():
             yield node_path
             return
         for child in node.children:
-            yield from cls._iter_files(child, node_path)
+            yield from cls._iter_tree(child, node_path)

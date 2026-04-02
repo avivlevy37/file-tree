@@ -16,7 +16,7 @@ class FileTree(Tree):
                  **kwargs: dict[str, Any]) -> None:
         assert directory.is_dir(), directory
         if name is None:
-            name = directory.name
+            name = directory.name or '.'
         name: str
         super().__init__(name, **kwargs)
         self.base_directory = directory

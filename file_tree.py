@@ -19,7 +19,25 @@ class FileTree(Tree):
         assert directory.is_dir(), directory
         self.base_directory = directory
 
-        for file in self._iter_relative(self.base_directory, include, exclude):
+        if include is not None:
+            self._validate_files(include, directory)
+        else:
+            include = directory.rglob("*")
+        include: Iterable[Path]
+
+        if exclude is None:
+            exclude = []
+        exclude: Iterable[Path]
+
+        excluded_files, excluded_dirs = self._validate_excludes(exclude)
+
+        files = self._iter_relative(
+            directory=self.base_directory,
+            include=include,
+            excluded_files=excluded_files,
+            excluded_dirs=excluded_dirs,
+        )
+        for file in files:
             node = self
             for part in file.parts:
                 child: Tree
@@ -76,16 +94,9 @@ class FileTree(Tree):
     @classmethod
     def _iter_relative(cls,
                        directory: Path,
-                       include: Iterable[Path] | None,
-                       exclude: Iterable[Path] | None) -> Generator[Path, None, None]:
-        if include is None:
-            include = [file for file in directory.rglob("*") if file.is_file()]
-        if exclude is None:
-            exclude = []
-
-        cls._validate_files(include, directory)
-        excluded_files, excluded_dirs = cls._validate_excludes(exclude)
-
+                       include: Iterable[Path],
+                       excluded_files: Iterable[Path],
+                       excluded_dirs: Iterable[Path]) -> Generator[Path, None, None]:
         for file in include:
             if file in excluded_files:
                 continue

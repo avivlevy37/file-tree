@@ -21,9 +21,6 @@ class FileTree(Tree):
 
         if include is not None:
             self._validate_files(include, directory)
-        else:
-            include = directory.rglob("*")
-        include: Iterable[Path]
 
         if exclude is None:
             exclude = []
@@ -34,8 +31,7 @@ class FileTree(Tree):
         files = self._iter_relative(
             directory=self.base_directory,
             include=include,
-            excluded_files=excluded_files,
-            excluded_dirs=excluded_dirs,
+            exclude=excluded_files + excluded_dirs,
         )
         for file in files:
             node = self
@@ -91,18 +87,35 @@ class FileTree(Tree):
                 raise FileNotFoundError(f"{excluded} does not exist!")
         return excluded_files, excluded_dirs
 
-    @classmethod
-    def _iter_relative(cls,
-                       directory: Path,
-                       include: Iterable[Path],
-                       excluded_files: Iterable[Path],
-                       excluded_dirs: Iterable[Path]) -> Generator[Path, None, None]:
-        for file in include:
-            if file in excluded_files:
-                continue
-            if any(file.is_relative_to(excluded) for excluded in excluded_dirs):
-                continue
-            yield file.relative_to(directory)
+    @staticmethod
+    def _iter_relative(directory: Path,
+                       include: Iterable[Path] | None,
+                       exclude: Iterable[Path]) -> Generator[Path, None, None]:
+        def __iter_relative(
+                _base: Path,
+                _directory: Path,
+                _include: Iterable[Path] | None,
+                _exclude: Iterable[Path],
+        ) -> Generator[Path, None, None]:
+            if _directory in _exclude:
+                return
+            for _child in _directory.iterdir():
+                if _child in _exclude:
+                    continue
+                if _child.is_dir():
+                    yield from __iter_relative(
+                        _base,
+                        _child,
+                        _include,
+                        _exclude,
+                    )
+                    continue
+                # child is a file
+                if _include is not None and _child not in _include:
+                    continue
+                yield _child.relative_to(_base)
+
+        yield from __iter_relative(directory, directory, include, exclude)
 
     @classmethod
     def _iter_tree(cls,
